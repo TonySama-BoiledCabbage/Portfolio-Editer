@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-language="en">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow">
+<title>Frame</title>
+<!-- The real portfolio spec, in the same order as index.html, so every frame
+     inherits the shipped grid and type scale instead of a copy of them. -->
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/grid-system.css">
+<link rel="stylesheet" href="./whiteboard-canvas.css">
+</head>
+<body class="wb-canvas">
+
+  <header class="top" id="wbHeader">
+    <a href="#" class="brand">YUNTAO LU</a>
+    <nav class="top-nav" aria-label="Main navigation">
+      <a href="#">Home</a>
+      <a href="#">Works</a>
+      <a href="#">Archive</a>
+      <a href="#" class="infolink">Info</a>
+    </nav>
+    <div class="top-tools">
+      <button class="language-toggle" type="button" tabindex="-1"><span data-language-option="en" class="is-active">EN</span><span data-language-option="zh">中文</span></button>
+      <button class="theme-toggle" type="button" tabindex="-1"><span aria-hidden="true"></span></button>
+    </div>
+  </header>
+
+  <footer class="foot" id="wbFooter">
+    <span id="footL">© YUNTAO LU</span>
+    <span class="fr" id="footR">HANGZHOU &amp; TORONTO, 2020—2026.</span>
+    <button class="gridbtn" type="button" tabindex="-1">GRID</button>
+    <button class="editbtn" type="button" tabindex="-1"><span class="dot"></span>EDIT</button>
+  </footer>
+
+  <div class="wb-guides" id="wbGuides" aria-hidden="true"></div>
+  <div class="wb-layer" id="wbLayer"></div>
+
+  <!-- Measurement probe: the tool reads a type level's real px off this rather
+       than recomputing the clamp, so vw resolves exactly as the frame does. -->
+  <span class="wb-probe" id="wbProbe" aria-hidden="true">M</span>
+
+</body>
+</html>

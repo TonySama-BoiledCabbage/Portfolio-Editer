@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>YUNSTUDIO 白板 — 本地版式工具</title>
+<link rel="stylesheet" href="./whiteboard.css">
+</head>
+<body>
+
+<!-- ================= CANVAS ================= -->
+<div class="wb-viewport" id="viewport">
+  <div class="wb-world" id="world"></div>
+  <div class="wb-overlay" id="overlay"></div>
+  <div class="wb-marquee" id="marquee" hidden></div>
+</div>
+
+<!-- ================= TOP LEFT: FILE ================= -->
+<div class="wb-chip wb-file">
+  <span class="wb-mark" aria-hidden="true">
+    <svg viewBox="0 0 12 12" width="14" height="14"><rect x="1" y="1" width="4" height="4" rx="1"/><rect x="7" y="1" width="4" height="4" rx="1"/><rect x="1" y="7" width="4" height="4" rx="1"/><circle cx="9" cy="9" r="2"/></svg>
+  </span>
+  <input class="wb-filename" id="boardName" type="text" value="未命名白板" aria-label="白板名称" spellcheck="false">
+  <span class="wb-save" id="saveState" title="自动保存到本地">已保存</span>
+</div>
+
+<!-- ================= TOP RIGHT: VIEW ================= -->
+<div class="wb-chip wb-viewbar">
+  <button class="wb-ico" id="toggleGuides" type="button" aria-pressed="true" title="栏位参考线 (G)">
+    <svg viewBox="0 0 16 16"><path d="M2 1v14M6 1v14M10 1v14M14 1v14"/></svg>
+  </button>
+  <button class="wb-ico" id="toggleBaseline" type="button" aria-pressed="false" title="基线 (B)">
+    <svg viewBox="0 0 16 16"><path d="M1 3h14M1 7h14M1 11h14M1 15h14"/></svg>
+  </button>
+  <button class="wb-ico" id="toggleSnap" type="button" aria-pressed="true" title="吸附对齐 (S) · 按住 Alt 临时关闭">
+    <svg viewBox="0 0 16 16"><path d="M4 2v6a4 4 0 008 0V2M4 8H2m12 0h-2"/></svg>
+  </button>
+  <span class="wb-sep"></span>
+  <button class="wb-ico" id="toggleTheme" type="button" aria-pressed="false" title="深色 / 浅色">
+    <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 000 12z" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <span class="wb-sep"></span>
+  <button class="wb-ico" id="exportBtn" type="button" title="导出 JSON">
+    <svg viewBox="0 0 16 16"><path d="M8 2v8M5 7l3 3 3-3M2 13h12"/></svg>
+  </button>
+  <label class="wb-ico wb-filebtn" title="导入 JSON">
+    <svg viewBox="0 0 16 16"><path d="M8 11V3M5 6l3-3 3 3M2 13h12"/></svg>
+    <input type="file" id="importInput" accept="application/json">
+  </label>
+</div>
+
+<!-- ================= LEFT: LAYERS ================= -->
+<aside class="wb-panel wb-layers" id="layersPanel">
+  <header class="wb-panel-head">
+    <span>图层</span>
+    <button class="wb-ico wb-ico-sm" id="collapseLayers" type="button" title="收起">
+      <svg viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></svg>
+    </button>
+  </header>
+  <div class="wb-panel-body" id="layerTree"></div>
+</aside>
+<button class="wb-chip wb-reopen" id="openLayers" type="button" hidden title="图层">
+  <svg viewBox="0 0 16 16" width="15" height="15"><path d="M6 3l5 5-5 5"/></svg>
+</button>
+
+<!-- ================= RIGHT: PROPERTIES ================= -->
+<aside class="wb-panel wb-props" id="propsPanel">
+  <header class="wb-panel-head">
+    <span id="propsTitle">页面</span>
+    <button class="wb-ico wb-ico-sm" id="collapseProps" type="button" title="收起">
+      <svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
+    </button>
+  </header>
+  <div class="wb-panel-body" id="propsBody"></div>
+</aside>
+<button class="wb-chip wb-reopen wb-reopen-right" id="openProps" type="button" hidden title="属性">
+  <svg viewBox="0 0 16 16" width="15" height="15"><path d="M10 3L5 8l5 5"/></svg>
+</button>
+
+<!-- ================= TYPE SAMPLE (hovers against the right panel) ================= -->
+<div class="wb-sample" id="typeSample" hidden aria-live="polite">
+  <div class="wb-sample-head">
+    <span class="wb-sample-name" id="sampleName"></span>
+    <span class="wb-sample-var" id="sampleVar"></span>
+  </div>
+  <div class="wb-sample-stage">
+    <div class="wb-sample-text" id="sampleText" contenteditable="true" spellcheck="false"></div>
+  </div>
+  <div class="wb-sample-foot">
+    <span class="wb-sample-size" id="sampleSize"></span>
+    <span class="wb-sample-ctx" id="sampleCtx"></span>
+  </div>
+</div>
+
+<!-- ================= BOTTOM CENTRE: TOOLBAR ================= -->
+<div class="wb-toolbar" id="toolbar" role="toolbar" aria-label="工具">
+  <button class="wb-tool is-on" data-tool="pointer" type="button" title="指针 · V">
+    <svg viewBox="0 0 20 20"><path d="M5 3l11 7-4.6 1.2L9.4 17z"/></svg>
+  </button>
+  <button class="wb-tool" data-tool="hand" type="button" title="抓手 · H · 按住空格">
+    <svg viewBox="0 0 20 20"><path d="M6.5 11V4.6a1.1 1.1 0 012.2 0V9m0-.6V3.6a1.1 1.1 0 012.2 0V9m0-.4V4.6a1.1 1.1 0 012.2 0V10m0-2.4a1.1 1.1 0 012.2 0v4.6c0 2.7-2 4.8-4.7 4.8-2.4 0-3.6-.8-5-2.7l-2-2.9a1.1 1.1 0 011.7-1.4l1.4 1.4"/></svg>
+  </button>
+
+  <span class="wb-tool-sep"></span>
+
+  <button class="wb-tool" data-tool="frame" type="button" title="画框 · F">
+    <svg viewBox="0 0 20 20"><path d="M6 2v16M14 2v16M2 6h16M2 14h16"/></svg>
+  </button>
+
+  <div class="wb-tool-group" id="shapeGroup">
+    <button class="wb-tool" data-tool="rect" type="button" title="形状 · R">
+      <svg viewBox="0 0 20 20" id="shapeIcon"><rect x="3" y="3" width="14" height="14" rx="1.5"/></svg>
+    </button>
+    <button class="wb-caret" id="shapeCaret" type="button" aria-label="更多形状" aria-expanded="false">
+      <svg viewBox="0 0 8 8"><path d="M1 3l3 3 3-3"/></svg>
+    </button>
+    <div class="wb-menu" id="shapeMenu" hidden>
+      <button data-shape="rect" type="button"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="1.5"/></svg>矩形</button>
+      <button data-shape="ellipse" type="button"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/></svg>椭圆</button>
+      <button data-shape="line" type="button"><svg viewBox="0 0 20 20"><path d="M3 17L17 3"/></svg>直线</button>
+    </div>
+  </div>
+
+  <button class="wb-tool" data-tool="text" type="button" title="文字 · T">
+    <svg viewBox="0 0 20 20"><path d="M4 4h12M10 4v13M7 17h6"/></svg>
+  </button>
+
+  <button class="wb-tool" data-tool="image" type="button" title="空图位 · I">
+    <svg viewBox="0 0 20 20"><rect x="2.5" y="4" width="15" height="12" rx="1.5"/><path d="M2.5 13l4-4 4 4 3-3 4 4"/></svg>
+  </button>
+</div>
+
+<!-- ================= BOTTOM RIGHT: ZOOM ================= -->
+<div class="wb-chip wb-zoom">
+  <button class="wb-ico" id="zoomOut" type="button" title="缩小">
+    <svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg>
+  </button>
+  <button class="wb-zoomval" id="zoomValue" type="button" title="缩放至 100%">100%</button>
+  <button class="wb-ico" id="zoomIn" type="button" title="放大">
+    <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>
+  </button>
+  <span class="wb-sep"></span>
+  <button class="wb-ico" id="zoomFit" type="button" title="适应全部 (Shift+1)">
+    <svg viewBox="0 0 16 16"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>
+  </button>
+</div>
+
+<div class="wb-toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./whiteboard.js" defer></script>
+</body>
+</html>

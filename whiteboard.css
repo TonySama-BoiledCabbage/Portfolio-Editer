@@ -1,0 +1,500 @@
+/* Whiteboard chrome. Deliberately independent of css/styles.css so the sandbox
+   UI can never leak into, or be restyled by, the portfolio spec. */
+
+:root {
+  --ui-bg: #f0f0f0;
+  --ui-panel: #fff;
+  --ui-ink: #1b1d20;
+  --ui-soft: #7a7f87;
+  --ui-line: #e6e6e6;
+  --ui-line-2: #d0d2d6;
+  --ui-accent: #7b5cff;
+  --ui-select: #0a84ff;
+  --ui-snap: #ff3b6b;
+  --ui-danger: #d63a2c;
+  --ui-mono: ui-monospace, "SF Mono", "IBM Plex Mono", Menlo, monospace;
+  --ui-font: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ui-shadow: 0 1px 2px #0000000f, 0 6px 20px #00000017;
+  --ui-radius: 12px;
+  --panel-w: 248px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0 }
+[hidden] { display: none !important }
+
+html, body { height: 100%; overflow: hidden }
+body {
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  font: 12px/1.45 var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer }
+input, select, textarea { font: inherit; color: inherit }
+:focus-visible { outline: 2px solid var(--ui-select); outline-offset: 1px }
+svg { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round }
+
+/* ============ CANVAS ============ */
+.wb-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, #c9c9c9 1px, transparent 0) 0 0 / 16px 16px,
+    var(--ui-bg);
+  cursor: default;
+  touch-action: none;
+}
+.wb-viewport[data-tool="hand"], .wb-viewport.is-panning { cursor: grab }
+.wb-viewport.is-panning { cursor: grabbing }
+.wb-viewport[data-tool="frame"],
+.wb-viewport[data-tool="rect"],
+.wb-viewport[data-tool="ellipse"],
+.wb-viewport[data-tool="line"],
+.wb-viewport[data-tool="image"] { cursor: crosshair }
+.wb-viewport[data-tool="text"] { cursor: text }
+
+.wb-world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform }
+
+.wb-frame { position: absolute; background: #fff; box-shadow: 0 1px 3px #00000014, 0 10px 34px #0000001a }
+.wb-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff }
+.wb-frame.is-drop { outline: 2px solid var(--ui-accent); outline-offset: 0 }
+
+/* Overlay lives in screen space so handles keep a constant size at any zoom. */
+.wb-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5 }
+
+.wb-flabel {
+  position: absolute;
+  font: 11px/1 var(--ui-font);
+  color: var(--ui-soft);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 3px 2px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-flabel.is-on { color: var(--ui-accent); font-weight: 600 }
+
+.wb-sel { position: absolute; border: 1px solid var(--ui-select); pointer-events: none }
+.wb-sel.is-frame { border-color: var(--ui-accent) }
+.wb-hover { position: absolute; border: 1px solid var(--ui-select); opacity: .5; pointer-events: none }
+
+.wb-h {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px 0 0 -5px;
+  background: #fff;
+  border: 1px solid var(--ui-select);
+  border-radius: 2px;
+  pointer-events: auto;
+  touch-action: none;
+}
+.wb-h[data-dir="nw"], .wb-h[data-dir="se"] { cursor: nwse-resize }
+.wb-h[data-dir="ne"], .wb-h[data-dir="sw"] { cursor: nesw-resize }
+.wb-h[data-dir="n"], .wb-h[data-dir="s"] { cursor: ns-resize }
+.wb-h[data-dir="e"], .wb-h[data-dir="w"] { cursor: ew-resize }
+
+.wb-snapline { position: absolute; background: var(--ui-snap); pointer-events: none }
+.wb-dim {
+  position: absolute;
+  padding: 2px 6px;
+  background: var(--ui-select);
+  color: #fff;
+  font: 10px/1.3 var(--ui-mono);
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.wb-marquee {
+  position: absolute;
+  border: 1px solid var(--ui-select);
+  background: color-mix(in srgb, var(--ui-select) 10%, transparent);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* ============ FLOATING CHIPS ============ */
+.wb-chip {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  background: var(--ui-panel);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+}
+.wb-file { top: 12px; left: 12px; gap: 6px; padding: 5px 10px 5px 8px }
+.wb-mark { display: grid; place-items: center; color: var(--ui-accent) }
+.wb-mark svg { fill: currentColor; stroke: none }
+.wb-filename {
+  width: 150px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  font-weight: 600;
+  user-select: text;
+}
+.wb-filename:hover { border-color: var(--ui-line) }
+.wb-filename:focus { border-color: var(--ui-select); outline: none; background: #fff }
+.wb-save { font: 10px/1 var(--ui-mono); color: var(--ui-soft); letter-spacing: .04em; white-space: nowrap }
+.wb-save.is-dirty { color: var(--ui-accent) }
+
+.wb-viewbar { top: 12px; right: 12px }
+.wb-zoom { bottom: 14px; right: 12px }
+.wb-zoomval { min-width: 52px; padding: 6px 4px; text-align: center; font: 11px/1 var(--ui-mono); border-radius: 6px }
+.wb-zoomval:hover { background: var(--ui-bg) }
+.wb-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--ui-line) }
+
+.wb-ico {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: var(--ui-ink);
+}
+.wb-ico svg { width: 16px; height: 16px }
+.wb-ico:hover { background: var(--ui-bg) }
+.wb-ico[aria-pressed="true"] { background: var(--ui-accent); color: #fff }
+.wb-ico-sm { width: 22px; height: 22px; color: var(--ui-soft) }
+.wb-ico-sm svg { width: 13px; height: 13px }
+.wb-filebtn { position: relative; overflow: hidden; cursor: pointer }
+.wb-filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer }
+
+/* ============ PANELS ============ */
+.wb-panel {
+  position: fixed;
+  top: 62px;
+  bottom: 74px;
+  z-index: 9;
+  width: var(--panel-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-panel);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  overflow: hidden;
+}
+.wb-layers { left: 12px }
+.wb-props { right: 12px }
+.wb-panel.is-closed { display: none }
+.wb-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 8px 9px 12px;
+  border-bottom: 1px solid var(--ui-line);
+  font-weight: 600;
+}
+.wb-panel-body { flex: 1; overflow-y: auto; overscroll-behavior: contain }
+.wb-reopen { top: 62px; left: 12px; padding: 6px }
+.wb-reopen-right { left: auto; right: 12px }
+
+/* ---- layers ---- */
+.wb-tree { padding: 6px }
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wb-row:hover { background: var(--ui-bg) }
+.wb-row.is-on { background: color-mix(in srgb, var(--ui-select) 14%, transparent) }
+.wb-row.is-frame { font-weight: 600 }
+.wb-row-child { padding-left: 20px }
+.wb-row-ico { flex: none; width: 14px; height: 14px; color: var(--ui-soft) }
+.wb-row-name { flex: 1; overflow: hidden; text-overflow: ellipsis }
+.wb-row-btn { flex: none; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 4px; color: var(--ui-soft); opacity: 0 }
+.wb-row:hover .wb-row-btn, .wb-row-btn.is-on { opacity: 1 }
+.wb-row-btn svg { width: 12px; height: 12px }
+.wb-row-btn:hover { background: var(--ui-line) }
+.wb-empty { padding: 16px 14px; color: var(--ui-soft); line-height: 1.7 }
+.wb-empty kbd {
+  display: inline-block;
+  min-width: 17px;
+  padding: 1px 4px;
+  margin: 0 1px;
+  border: 1px solid var(--ui-line-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 10px/1.5 var(--ui-mono);
+  text-align: center;
+  color: var(--ui-ink);
+}
+
+/* ---- properties ---- */
+.wb-sec { padding: 10px 12px; border-bottom: 1px solid var(--ui-line) }
+.wb-sec:last-child { border-bottom: 0 }
+.wb-sec-t {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 10px/1 var(--ui-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ui-soft);
+  margin-bottom: 9px;
+}
+.wb-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+.wb-g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px }
+.wb-g2 + .wb-g2, .wb-g2 + .wb-g3, .wb-g3 + .wb-g2, .wb-f + .wb-g2 { margin-top: 6px }
+
+.wb-f { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 7px; border: 1px solid transparent; border-radius: 6px; background: var(--ui-bg) }
+.wb-f:focus-within { border-color: var(--ui-select); background: #fff }
+.wb-f > label { flex: none; font: 10px/1 var(--ui-mono); color: var(--ui-soft); text-transform: uppercase; min-width: 12px }
+.wb-f input, .wb-f select {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  user-select: text;
+}
+.wb-f select { cursor: pointer; margin-left: -3px }
+.wb-f input[type="color"] { flex: none; width: 22px; height: 18px; padding: 0; border: 1px solid var(--ui-line-2); border-radius: 3px; cursor: pointer; background: none }
+.wb-stack { display: block; height: auto; padding: 6px 7px }
+.wb-stack > label { display: block; margin-bottom: 4px }
+.wb-stack textarea { width: 100%; border: 0; background: none; outline: none; resize: vertical; font: inherit; line-height: 1.5; user-select: text }
+
+.wb-check { display: flex; align-items: center; gap: 7px; height: 26px; cursor: pointer }
+.wb-check input { accent-color: var(--ui-accent); cursor: pointer }
+.wb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-line-2);
+  border-radius: 6px;
+  background: #fff;
+  white-space: nowrap;
+}
+.wb-btn:hover { background: var(--ui-bg); border-color: var(--ui-soft) }
+.wb-btn.is-wide { width: 100% }
+.wb-btn.is-danger { color: var(--ui-danger) }
+.wb-btn.is-danger:hover { background: #fdecea; border-color: var(--ui-danger) }
+.wb-seg { display: flex; padding: 2px; border-radius: 6px; background: var(--ui-bg) }
+.wb-seg button { flex: 1; height: 24px; border-radius: 4px; display: grid; place-items: center; color: var(--ui-soft) }
+.wb-seg button svg { width: 14px; height: 14px }
+.wb-seg button.is-on { background: #fff; color: var(--ui-ink); box-shadow: 0 1px 2px #00000014 }
+.wb-note { margin-top: 7px; font-size: 11px; line-height: 1.55; color: var(--ui-soft) }
+
+.wb-lvl { border: 1px solid var(--ui-line); border-radius: 7px; margin-bottom: 4px; background: #fff }
+.wb-lvl > summary { display: flex; align-items: baseline; gap: 7px; padding: 7px 9px; cursor: pointer; list-style: none }
+.wb-lvl > summary::-webkit-details-marker { display: none }
+.wb-lvl-n { font-weight: 600; width: 46px; flex: none }
+.wb-lvl-v { flex: 1; font: 9px/1 var(--ui-mono); color: var(--ui-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.wb-lvl-s { flex: none; font: 10px/1 var(--ui-mono) }
+.wb-lvl-b { padding: 0 9px 9px }
+
+/* ============ TYPE SAMPLE ============ */
+/* Sits against the inner edge of the properties panel while a level is open. */
+.wb-sample {
+  position: fixed;
+  right: calc(var(--panel-w) + 24px);
+  z-index: 11;
+  width: 330px;
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-panel);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  overflow: hidden;
+  animation: wbSampleIn .14s ease both;
+}
+@keyframes wbSampleIn {
+  from { opacity: 0; transform: translateX(6px) }
+  to { opacity: 1; transform: none }
+}
+.wb-sample::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--ui-panel);
+  transform: rotate(45deg);
+}
+.wb-sample-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--ui-line);
+}
+.wb-sample-name { font-weight: 600 }
+.wb-sample-var { font: 9px/1 var(--ui-mono); color: var(--ui-soft) }
+
+.wb-sample-stage {
+  padding: 14px 12px;
+  max-height: 232px;
+  overflow: hidden;
+  background:
+    linear-gradient(var(--ui-panel), var(--ui-panel)) 0 0 / 100% calc(100% - 26px) no-repeat,
+    linear-gradient(to bottom, var(--ui-panel), #fff0);
+}
+/* Rendered at the size the level actually resolves to inside the frame. */
+.wb-sample-text {
+  margin: 0;
+  outline: none;
+  overflow-wrap: anywhere;
+  color: var(--sample-color, var(--ui-ink));
+  font-family: var(--sample-family, var(--ui-font));
+  font-size: var(--sample-size, 16px);
+  font-weight: var(--sample-weight, 400);
+  line-height: var(--sample-lh, 1.4);
+  letter-spacing: var(--sample-ls, 0);
+  text-transform: var(--sample-transform, none);
+  user-select: text;
+}
+.wb-sample-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 11px;
+  border-top: 1px solid var(--ui-line);
+  font: 10px/1.4 var(--ui-mono);
+  color: var(--ui-soft);
+}
+.wb-sample-size { color: var(--ui-ink) }
+
+@media (max-width: 1080px) {
+  .wb-sample { width: 270px }
+}
+@media (max-width: 900px) {
+  .wb-sample { display: none }
+}
+
+/* ============ BOTTOM CENTRE TOOLBAR ============ */
+.wb-toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  background: var(--ui-panel);
+  border-radius: 14px;
+  box-shadow: 0 2px 6px #00000014, 0 14px 40px #0000001f;
+}
+.wb-tool {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--ui-ink);
+  transition: background .1s ease, color .1s ease;
+}
+.wb-tool svg { width: 20px; height: 20px }
+.wb-tool[data-tool="pointer"] svg { fill: currentColor; stroke-width: 1.2 }
+.wb-tool:hover { background: var(--ui-bg) }
+.wb-tool.is-on { background: var(--ui-accent); color: #fff }
+.wb-tool-sep { width: 1px; height: 24px; margin: 0 5px; background: var(--ui-line) }
+
+.wb-tool-group { position: relative; display: flex; align-items: center }
+.wb-caret {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 40px;
+  color: var(--ui-soft);
+  border-radius: 0 10px 10px 0;
+}
+.wb-caret svg { width: 8px; height: 8px }
+.wb-caret:hover { background: var(--ui-bg) }
+.wb-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 132px;
+  padding: 5px;
+  background: var(--ui-panel);
+  border-radius: 10px;
+  box-shadow: var(--ui-shadow);
+}
+.wb-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 6px;
+  text-align: left;
+}
+.wb-menu button svg { width: 15px; height: 15px; flex: none; color: var(--ui-soft) }
+.wb-menu button:hover { background: var(--ui-bg) }
+.wb-menu button.is-on { color: var(--ui-accent) }
+.wb-menu button.is-on svg { color: var(--ui-accent) }
+
+/* ============ FATAL ============ */
+.wb-fatal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  max-width: 460px;
+  padding: 20px 22px;
+  background: var(--ui-panel);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  text-align: left;
+}
+.wb-fatal strong { display: block; margin-bottom: 7px }
+.wb-fatal p { font-size: 12px; line-height: 1.7; color: var(--ui-soft) }
+
+/* ============ TOAST ============ */
+.wb-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 74px;
+  transform: translate(-50%, 10px);
+  z-index: 20;
+  padding: 8px 15px;
+  border-radius: 8px;
+  background: var(--ui-ink);
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.wb-toast.is-on { opacity: 1; transform: translate(-50%, 0) }
+
+/* ============ NARROW WINDOWS ============ */
+@media (max-width: 1080px) {
+  :root { --panel-w: 212px }
+}
+@media (max-width: 860px) {
+  .wb-layers, .wb-reopen:not(.wb-reopen-right) { display: none }
+}
+@media (max-width: 720px) {
+  .wb-zoom { display: none }
+  .wb-file { max-width: 46vw }
+  .wb-filename { width: 100%; min-width: 0 }
+}

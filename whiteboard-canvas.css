@@ -1,0 +1,205 @@
+/* Frame document — the page artboard inside one whiteboard frame.
+   Loaded AFTER css/styles.css and css/grid-system.css so the shipped spec stays
+   the source of truth; everything here is sandbox chrome or an override that
+   only engages once a value is deliberately changed. */
+
+.wb-canvas {
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper);
+  cursor: default;
+}
+html { height: 100% }
+.wb-canvas a { cursor: inherit }
+/* The header entrance animation is noise in a layout tool. */
+.wb-canvas .top .brand,
+.wb-canvas .top .infolink { animation: none }
+
+/* ============ HEADING POSITION ============ */
+.wb-canvas .top {
+  position: absolute;
+  top: var(--wb-header-top, 0px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+.wb-canvas[data-header="off"] .top { display: none }
+.wb-canvas[data-header-rule="off"] .top { border-bottom: 0 }
+.wb-canvas[data-header-brand="off"] .top .brand { visibility: hidden }
+.wb-canvas[data-header-tools="off"] .top .top-tools { visibility: hidden }
+.wb-canvas[data-header-custom="on"] .top { padding-block: var(--wb-header-pad, 14px) }
+.wb-canvas[data-header-custom="on"] .top .top-nav { justify-content: var(--wb-nav-justify, center) }
+
+/* ============ FOOTER POSITION ============ */
+.wb-canvas .foot {
+  position: absolute;
+  bottom: var(--wb-footer-bottom, 0px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+}
+.wb-canvas[data-footer="off"] .foot { display: none }
+.wb-canvas[data-footer-rule="off"] .foot { border-top: 0 }
+.wb-canvas[data-footer-tools="off"] .foot .gridbtn,
+.wb-canvas[data-footer-tools="off"] .foot .editbtn { visibility: hidden }
+.wb-canvas[data-footer-custom="on"] .foot { padding-block: var(--wb-footer-pad, 32px) }
+.wb-canvas[data-footer-custom="on"] .foot > #footL { grid-column: var(--wb-footL, 1 / 5); grid-row: var(--wb-footL-row, 1) }
+.wb-canvas[data-footer-custom="on"] .foot > .fr {
+  grid-column: var(--wb-footR, 5 / 9);
+  grid-row: var(--wb-footR-row, 1);
+  justify-self: var(--wb-footR-justify, start);
+  text-align: var(--wb-footR-align, left);
+}
+
+/* ============ GRID GUIDES ============ */
+.wb-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  column-gap: var(--grid-gutter);
+  padding-inline: var(--grid-margin);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.wb-canvas[data-guides="on"] .wb-guides { opacity: 1; visibility: visible }
+.wb-canvas[data-baseline="on"] .wb-guides {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(228, 0, 43, .1) 0,
+    rgba(228, 0, 43, .1) 1px,
+    transparent 1px,
+    transparent var(--grid-baseline)
+  );
+}
+.wb-guides::before,
+.wb-guides::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(228, 0, 43, .6);
+}
+.wb-guides::before { left: var(--grid-margin) }
+.wb-guides::after { right: var(--grid-margin) }
+.wb-guides span {
+  min-width: 0;
+  border-inline: 1px solid rgba(228, 0, 43, .3);
+  background: rgba(228, 0, 43, .03);
+}
+
+/* ============ ELEMENT LAYER ============ */
+.wb-layer { position: absolute; inset: 0; z-index: 3 }
+
+.wb-probe {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+  font-family: var(--font);
+}
+
+.wb-el {
+  position: absolute;
+  overflow: hidden;
+  cursor: default;
+}
+.wb-canvas[data-tool="pointer"] .wb-el { cursor: move }
+.wb-canvas[data-tool="hand"] .wb-el { cursor: grab; pointer-events: none }
+.wb-canvas[data-tool="draw"] .wb-el { pointer-events: none }
+.wb-el[data-locked="true"] { pointer-events: none }
+.wb-el[data-hidden="true"] { display: none }
+
+/* ---- TEXT ---- */
+.wb-text {
+  margin: 0;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: var(--wb-align, left);
+  color: var(--wb-color, inherit);
+}
+.wb-text:focus { outline: none }
+.wb-el[data-empty="true"] .wb-text::after {
+  content: attr(data-placeholder);
+  color: var(--ink-soft);
+  opacity: .5;
+}
+.wb-el[data-editing="true"] { overflow: visible; cursor: text }
+.wb-el[data-editing="true"] .wb-text { cursor: text }
+
+/* Type levels. Sizes come from the portfolio's own --type-* tokens, which the
+   tool re-declares on :root whenever a level is parameterised. */
+.wb-el[data-level="display"] .wb-text { font-size: var(--type-display); font-weight: var(--wb-w-display); line-height: var(--wb-lh-display); letter-spacing: var(--wb-ls-display) }
+.wb-el[data-level="page"]    .wb-text { font-size: var(--type-page);    font-weight: var(--wb-w-page);    line-height: var(--wb-lh-page);    letter-spacing: var(--wb-ls-page) }
+.wb-el[data-level="project"] .wb-text { font-size: var(--type-project); font-weight: var(--wb-w-project); line-height: var(--wb-lh-project); letter-spacing: var(--wb-ls-project) }
+.wb-el[data-level="lead"]    .wb-text { font-size: var(--type-lead);    font-weight: var(--wb-w-lead);    line-height: var(--wb-lh-lead);    letter-spacing: var(--wb-ls-lead) }
+.wb-el[data-level="chapter"] .wb-text { font-size: var(--type-chapter); font-weight: var(--wb-w-chapter); line-height: var(--wb-lh-chapter); letter-spacing: var(--wb-ls-chapter) }
+.wb-el[data-level="card"]    .wb-text { font-size: var(--type-card);    font-weight: var(--wb-w-card);    line-height: var(--wb-lh-card);    letter-spacing: var(--wb-ls-card) }
+.wb-el[data-level="body"]    .wb-text { font-size: var(--type-body);    font-weight: var(--wb-w-body);    line-height: var(--wb-lh-body);    letter-spacing: var(--wb-ls-body) }
+.wb-el[data-level="meta"]    .wb-text { font-size: var(--type-meta);    font-weight: var(--wb-w-meta);    line-height: var(--wb-lh-meta);    letter-spacing: var(--wb-ls-meta); color: var(--wb-color, var(--ink-soft)) }
+.wb-el[data-level="label"]   .wb-text { font-size: var(--type-label);   font-weight: var(--wb-w-label);   line-height: var(--wb-lh-label);   letter-spacing: var(--wb-ls-label); color: var(--wb-color, var(--ink-soft)); text-transform: uppercase; font-family: var(--mono) }
+
+/* ---- SHAPES ---- */
+.wb-shape {
+  width: 100%;
+  height: 100%;
+  background: var(--wb-fill, #e6e6e6);
+  border: var(--wb-stroke-w, 0px) solid var(--wb-stroke, #111);
+  border-radius: var(--wb-radius, 0px);
+}
+.wb-el[data-type="ellipse"] .wb-shape { border-radius: 50% }
+.wb-el[data-type="line"] { overflow: visible }
+.wb-el[data-type="line"] .wb-shape {
+  height: var(--wb-stroke-w, 1px);
+  min-height: 1px;
+  background: var(--wb-stroke, #111);
+  border: 0;
+  border-radius: 0;
+  margin-top: calc(50% - var(--wb-stroke-w, 1px) / 2);
+}
+
+/* ---- EMPTY IMAGE SLOT ---- */
+.wb-img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--ink-soft);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+/* Corner-to-corner cross, drawn with gradients so it stays true at any size. */
+.wb-img::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .45;
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - .5px), var(--ink-soft) 50%, transparent calc(50% + .5px)),
+    linear-gradient(to bottom right, transparent calc(50% - .5px), var(--ink-soft) 50%, transparent calc(50% + .5px));
+}
+.wb-img-tag {
+  position: relative;
+  z-index: 1;
+  padding: 4px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font: 11px/1.2 var(--mono);
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wb-el[data-tag="off"] .wb-img-tag { display: none }
